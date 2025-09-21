@@ -23,10 +23,27 @@ export default function Dashboard() {
     totalTests: 0,
     totalUsers: 0
   });
+  const [student, setStudent] = useState<{ id: string; name: string; institute?: string } | null>(null);
+  const [personal, setPersonal] = useState({
+    lastAttempt: null as null | { testTitle: string; date: string; score: number; percentile: number },
+    nextTest: null as null | { title: string; date: string },
+    avgScore: 0,
+    strongAreas: [] as string[],
+    weakAreas: [] as string[],
+    recommendations: ''
+  });
 
   useEffect(() => {
     fetchStats();
+    const id = localStorage.getItem('studentId');
+    const name = localStorage.getItem('studentName');
+    const institute = localStorage.getItem('studentInstitute') || undefined;
+    if (id && name) setStudent({ id, name, institute });
   }, []);
+
+  useEffect(() => {
+    if (student) fetchPersonalized(student.id);
+  }, [student]);
 
   const fetchStats = async () => {
     try {
@@ -40,10 +57,66 @@ export default function Dashboard() {
         totalBooks: booksRes.count || 0,
         totalAssignments: assignmentsRes.count || 0,
         totalTests: testsRes.count || 0,
-        totalUsers: 0 // No user tracking needed
+        totalUsers: 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchPersonalized = async (studentId: string) => {
+    try {
+      const { data: attempts } = await supabase
+        .from('test_attempts')
+        .select('id,test_id,score,percentile,submitted_at,per_subject_scores')
+        .eq('anon_user_id', studentId)
+        .order('submitted_at', { ascending: false })
+        .limit(10);
+
+      if (!attempts || attempts.length === 0) {
+        setPersonal({
+          lastAttempt: null,
+          nextTest: null,
+          avgScore: 0,
+          strongAreas: [],
+          weakAreas: [],
+          recommendations: 'Start a test to see insights.'
+        });
+        return;
+      }
+
+      const testIds = attempts.map(a => a.test_id);
+      const { data: tests } = await supabase.from('tests').select('id,title').in('id', testIds);
+      const titleMap = new Map(tests?.map(t => [t.id, t.title] as const));
+
+      const last = attempts[0];
+      const lastAttempt = {
+        testTitle: titleMap.get(last.test_id) || 'Test',
+        date: last.submitted_at || '',
+        score: Math.round(last.score || 0),
+        percentile: Math.round((last.percentile || 0) * 10) / 10,
+      };
+
+      const avgScore = Math.round((attempts.reduce((s, a) => s + (a.score || 0), 0) / attempts.length) * 10) / 10;
+
+      const subjectAgg: Record<string, { correct: number; total: number }> = {};
+      attempts.forEach(a => {
+        const per = a.per_subject_scores as any as Record<string, { correct: number; total: number }> | null;
+        if (per) Object.entries(per).forEach(([subj, val]) => {
+          if (!subjectAgg[subj]) subjectAgg[subj] = { correct: 0, total: 0 };
+          subjectAgg[subj].correct += val.correct;
+          subjectAgg[subj].total += val.total;
+        });
+      });
+      const subjectRates = Object.entries(subjectAgg).map(([s, v]) => ({ s, rate: v.total ? v.correct / v.total : 0 }));
+      subjectRates.sort((a, b) => b.rate - a.rate);
+      const strongAreas = subjectRates.filter(x => x.rate >= 0.7).map(x => x.s);
+      const weakAreas = subjectRates.filter(x => x.rate < 0.5).map(x => x.s);
+      const recommendations = weakAreas.length > 0 ? `Focus on ${weakAreas.join(', ')} and practice timed sets.` : 'Keep up the good work. Attempt mixed practice sets.';
+
+      setPersonal({ lastAttempt, nextTest: null, avgScore, strongAreas, weakAreas, recommendations });
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -82,6 +155,57 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <div className="space-y-8">
+
+            {student && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Welcome, {student.name}</CardTitle>
+                  <CardDescription>{student.institute ? `Institute: ${student.institute}` : 'Personalized dashboard'}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-4 gap-4">
+                    <div className="p-4 border rounded">
+                      <div className="text-xs text-muted-foreground">Last Attempt</div>
+                      {personal.lastAttempt ? (
+                        <div>
+                          <div className="font-medium">{personal.lastAttempt.testTitle}</div>
+                          <div className="text-xs text-muted-foreground">{new Date(personal.lastAttempt.date).toLocaleString()}</div>
+                          <div className="mt-1 text-sm">Score: {personal.lastAttempt.score} • {personal.lastAttempt.percentile}%</div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">No attempts yet</div>
+                      )}
+                    </div>
+                    <div className="p-4 border rounded">
+                      <div className="text-xs text-muted-foreground">Next Scheduled Test</div>
+                      <div className="text-sm">No upcoming tests scheduled</div>
+                    </div>
+                    <div className="p-4 border rounded">
+                      <div className="text-xs text-muted-foreground">Average Score</div>
+                      <div className="text-2xl font-bold">{personal.avgScore}</div>
+                    </div>
+                    <div className="p-4 border rounded">
+                      <div className="text-xs text-muted-foreground">Recommendations</div>
+                      <div className="text-sm">{personal.recommendations}</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid md:grid-cols-2 gap-4">
+                    <div className="p-4 border rounded">
+                      <div className="text-sm font-medium mb-2">Strong Areas</div>
+                      <div className="flex flex-wrap gap-2">
+                        {personal.strongAreas.length ? personal.strongAreas.map(s => (<Badge key={s} variant="secondary">{s}</Badge>)) : <span className="text-sm text-muted-foreground">—</span>}
+                      </div>
+                    </div>
+                    <div className="p-4 border rounded">
+                      <div className="text-sm font-medium mb-2">Weak Areas</div>
+                      <div className="flex flex-wrap gap-2">
+                        {personal.weakAreas.length ? personal.weakAreas.map(s => (<Badge key={s} variant="destructive">{s}</Badge>)) : <span className="text-sm text-muted-foreground">—</span>}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

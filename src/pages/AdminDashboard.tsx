@@ -32,6 +32,51 @@ interface AdminStats {
   activeCodes: number;
 }
 
+function ViolationsPanel() {
+  const [items, setItems] = useState<Array<{ id: string; anon_user_id: string; test_id: string; submitted_at: string | null; title?: string }>>([]);
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from('test_attempts')
+        .select('id,anon_user_id,test_id,submitted_at,session_data')
+        .contains('session_data', { violation: 'tab_switch_auto_submit' })
+        .order('submitted_at', { ascending: false })
+        .limit(50);
+      const ids = (data || []).map(d => d.test_id);
+      const { data: tests } = ids.length ? await supabase.from('tests').select('id,title').in('id', ids) : { data: [] as any[] };
+      const titleMap = new Map((tests || []).map(t => [t.id, t.title] as const));
+      setItems((data || []).map(d => ({ id: d.id, anon_user_id: d.anon_user_id, test_id: d.test_id, submitted_at: d.submitted_at, title: titleMap.get(d.test_id) })));
+    };
+    load();
+  }, []);
+
+  return (
+    <Card className="shadow-card">
+      <CardHeader>
+        <CardTitle>Auto-submitted due to tab switching</CardTitle>
+        <CardDescription>Recent attempts locked after repeated tab switching</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No violations logged.</div>
+        ) : (
+          <div className="space-y-2">
+            {items.map(i => (
+              <div key={i.id} className="flex items-center justify-between border rounded p-2 text-sm">
+                <div>
+                  <div className="font-medium">{i.title || i.test_id}</div>
+                  <div className="text-xs text-muted-foreground">Attempt: {i.id} • Student: {i.anon_user_id}</div>
+                </div>
+                <div className="text-xs text-muted-foreground">{i.submitted_at ? new Date(i.submitted_at).toLocaleString() : '—'}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminDashboard() {
   const { isAuthenticated, loading, signOut } = useCustomAdminAuth();
   const [showTestCreation, setShowTestCreation] = useState(false);
@@ -315,6 +360,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
+            <ViolationsPanel />
             <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

@@ -17,6 +17,7 @@ import TestAnalysis from "./pages/TestAnalysis";
 import AdminAuth from "./pages/AdminAuth";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import StudentLogin from "./pages/StudentLogin";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,7 @@ const App = () => {
                   <Route path="/tests/:testId" element={<TestInfo />} />
                   <Route path="/tests/:testId/start" element={<TestStart />} />
                   <Route path="/tests/:testId/analysis/:attemptId" element={<TestAnalysis />} />
+                  <Route path="/login" element={<StudentLogin />} />
                   <Route path="/admin/auth" element={<AdminAuth />} />
                   <Route path="/admin" element={<AdminDashboard />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
