@@ -29,6 +29,7 @@ export const SecurityGate = ({ onComplete }: SecurityGateProps) => {
       if (elapsed >= duration) {
         clearInterval(interval);
         sessionStorage.setItem('seenSecurityGate', 'true');
+        window.open('https://iit-jee-echo.vercel.app/', '_blank', 'noopener,noreferrer');
         onComplete();
       }
     }, 50);
