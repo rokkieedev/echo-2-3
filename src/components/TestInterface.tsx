@@ -9,12 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Clock, 
-  ChevronLeft, 
-  ChevronRight, 
-  Flag, 
-  CheckCircle, 
+import { PercentileCalculator } from '@/utils/percentileCalculator';
+import {
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Flag,
+  CheckCircle,
   AlertTriangle,
   BookOpen,
   Timer
@@ -35,6 +36,7 @@ interface Question {
   question_type: 'mcq' | 'numerical';
   order_number: number;
   image_url?: string;
+  correct_answer?: string;
 }
 
 interface Response {
@@ -53,12 +55,40 @@ export default function TestInterface({ testId, testTitle, anonUserId, onComplet
   const [testDuration, setTestDuration] = useState(180);
   const [startTime] = useState(Date.now());
   const [attemptId, setAttemptId] = useState<string>('');
+  const [tabSwitches, setTabSwitches] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     initializeTest();
   }, [testId]);
+
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.hidden) {
+        setTabSwitches((prev) => {
+          const next = prev + 1;
+          if (next === 1) {
+            toast({ title: 'Warning', description: 'Do not switch tabs during the test. Next time will auto-submit.', variant: 'destructive' });
+          } else if (next >= 2) {
+            supabase.from('test_attempts').update({ session_data: { violation: 'tab_switch_auto_submit' } }).eq('id', attemptId).then(() => {
+              handleSubmitTest();
+            });
+          }
+          return next;
+        });
+      }
+    };
+    const handleBlur = () => handleVisibility();
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [attemptId, handleSubmitTest, toast]);
 
   useEffect(() => {
     if (timeRemaining > 0) {
@@ -80,7 +110,7 @@ export default function TestInterface({ testId, testTitle, anonUserId, onComplet
       // Fetch test details and questions
       const [testRes, questionsRes] = await Promise.all([
         supabase.from('tests').select('*').eq('id', testId).single(),
-        supabase.from('test_questions').select('*').eq('test_id', testId).order('order_number')
+        supabase.from('test_questions').select('id,question,options,subject,question_type,order_number,image_url,correct_answer').eq('test_id', testId).order('order_number')
       ]);
 
       if (testRes.error) throw testRes.error;
@@ -92,8 +122,9 @@ export default function TestInterface({ testId, testTitle, anonUserId, onComplet
         options: Array.isArray(q.options) ? q.options.map(String) : [],
         subject: q.subject,
         question_type: q.question_type as 'mcq' | 'numerical',
-        order_number: q.order_number,  
-        image_url: q.image_url
+        order_number: q.order_number,
+        image_url: q.image_url,
+        correct_answer: q.correct_answer
       }));
 
       setQuestions(formattedQuestions);
@@ -150,7 +181,7 @@ export default function TestInterface({ testId, testTitle, anonUserId, onComplet
       const endTime = Date.now();
       const totalDuration = Math.floor((endTime - startTime) / 1000);
 
-      // Calculate score
+      // Calculate score using correct answers
       let correctAnswers = 0;
       const subjectScores: Record<string, { correct: number; total: number }> = {};
 
@@ -161,28 +192,32 @@ export default function TestInterface({ testId, testTitle, anonUserId, onComplet
         }
         subjectScores[question.subject].total++;
 
-        if (response?.answer) {
-          // Simple answer checking (would need proper answer validation in real app)
+        const isCorrect = response?.answer && question.correct_answer
+          ? String(response.answer).trim() === String(question.correct_answer).trim()
+          : false;
+        if (isCorrect) {
           correctAnswers++;
           subjectScores[question.subject].correct++;
         }
       });
 
       const totalQuestions = questions.length;
-      const score = Math.round((correctAnswers / totalQuestions) * 300); // Scale to 300 marks
-      
-      // Calculate percentile (using simplified logic for now)
-      const percentileData = { percentile: Math.min(99.9, (score / 300) * 100), predictedRank: Math.max(1, Math.floor((100 - (score / 300) * 100) * 1000)) };
-      
-      // Update test attempt
+      const score = Math.round((correctAnswers / Math.max(1, totalQuestions)) * 300);
+
+      // Calculate percentile from dataset (mains/advanced)
+      const testInfo = await supabase.from('tests').select('test_type').eq('id', testId).single();
+      const exam = testInfo.data?.test_type === 'JEE' ? 'mains' as const : 'mains' as const;
+      const p = await PercentileCalculator.calculatePercentile(Math.round(score), exam);
+      const r = PercentileCalculator.calculatePredictedRank(p, exam);
+
       const { error: updateError } = await supabase
         .from('test_attempts')
         .update({
           submitted_at: new Date().toISOString(),
           duration_seconds: totalDuration,
           score,
-          percentile: percentileData.percentile,
-          predicted_rank: percentileData.predictedRank,
+          percentile: p,
+          predicted_rank: r,
           per_subject_scores: subjectScores
         })
         .eq('id', attemptId);
@@ -209,8 +244,8 @@ export default function TestInterface({ testId, testTitle, anonUserId, onComplet
       onComplete({
         attemptId,
         score,
-        percentile: percentileData.percentile,
-        predictedRank: percentileData.predictedRank,
+        percentile: p,
+        predictedRank: r,
         totalQuestions,
         correctAnswers,
         subjectScores,
