@@ -1,0 +1,7 @@
+project_id = "iovhbvruvpxwmskrnuuj"
+
+[functions.verify-access-code]
+verify_jwt = false
+
+[functions.contact-telegram]
+verify_jwt = false
