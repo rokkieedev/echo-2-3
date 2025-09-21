@@ -12,9 +12,10 @@ export default function TestStart() {
   useEffect(() => {
     const init = async () => {
       if (!testId) return navigate('/tests');
-      const anonKey = `anonUserId:${testId}`;
-      const stored = sessionStorage.getItem(anonKey) || crypto.randomUUID();
-      sessionStorage.setItem(anonKey, stored);
+      const studentId = localStorage.getItem('studentId');
+      const anonKey = studentId ? `student:${studentId}` : `anonUserId:${testId}`;
+      const stored = studentId || sessionStorage.getItem(anonKey) || crypto.randomUUID();
+      if (!studentId) sessionStorage.setItem(anonKey, stored);
       setAnonUserId(stored);
       const { data, error } = await supabase.from('tests').select('title').eq('id', testId).single();
       if (error) return navigate('/tests');
