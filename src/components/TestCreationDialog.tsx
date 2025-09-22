@@ -41,7 +41,10 @@ export default function TestCreationDialog({ isOpen, onClose, onSuccess }: TestC
     title: '',
     description: '',
     duration: 180, // 3 hours default
-    test_type: 'JEE' as 'JEE' | 'NEET'
+    test_type: 'JEE' as 'JEE' | 'NEET',
+    access_start_at: '' as string | '',
+    access_end_at: '' as string | '',
+    is_locked: false,
   });
 
   const [questions, setQuestions] = useState<Question[]>([]);
