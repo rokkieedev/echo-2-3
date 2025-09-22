@@ -253,6 +253,8 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            <TestLockManager />
           </TabsContent>
 
           <TabsContent value="content" className="space-y-6">
