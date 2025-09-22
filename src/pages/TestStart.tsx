@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import TestInterface from '@/components/TestInterface';
+import { useToast } from '@/hooks/use-toast';
+import { getLockStatus } from '@/utils/testLock';
 
 export default function TestStart() {
   const { testId } = useParams();
