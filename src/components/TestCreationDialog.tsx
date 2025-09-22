@@ -65,7 +65,10 @@ export default function TestCreationDialog({ isOpen, onClose, onSuccess }: TestC
       title: '',
       description: '',
       duration: 180,
-      test_type: 'JEE'
+      test_type: 'JEE',
+      access_start_at: '',
+      access_end_at: '',
+      is_locked: false,
     });
     setQuestions([]);
     setCurrentQuestion({
