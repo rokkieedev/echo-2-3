@@ -8,20 +8,23 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Key, Lock } from 'lucide-react';
 
+import { getLockStatus } from '@/utils/testLock';
+
 interface AccessCodeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (testData: any) => void;
+  testId: string | null;
 }
 
-export default function AccessCodeDialog({ isOpen, onClose, onSuccess }: AccessCodeDialogProps) {
+export default function AccessCodeDialog({ isOpen, onClose, onSuccess, testId }: AccessCodeDialogProps) {
   const [loading, setLoading] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!accessCode.trim()) {
       toast({
         title: "Access Code Required",
@@ -31,11 +34,29 @@ export default function AccessCodeDialog({ isOpen, onClose, onSuccess }: AccessC
       return;
     }
 
+    if (!testId) {
+      toast({
+        title: "Select a Test",
+        description: "Please choose a test to unlock.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      // Check lock window before consuming code
+      const { data: testRow, error: testErr } = await supabase.from('tests').select('*').eq('id', testId).single();
+      if (testErr) throw testErr;
+      const status = getLockStatus(testRow || {});
+      if (!status.open) {
+        toast({ title: 'Test Locked', description: status.reason || 'Not accessible now', variant: 'destructive' });
+        return;
+      }
+
       // Generate anonymous user ID for this session
       const anonUserId = crypto.randomUUID();
-      
+
       // Use the access code
       const { data, error } = await supabase.rpc('use_access_code', {
         input_code: accessCode.trim().toUpperCase(),
@@ -47,13 +68,18 @@ export default function AccessCodeDialog({ isOpen, onClose, onSuccess }: AccessC
       const result = data as unknown as { success: boolean; test_id?: string; test_title?: string; message?: string };
 
       if (result?.success) {
+        // Double-check code is for the selected test
+        if (result.test_id && result.test_id !== testId) {
+          toast({ title: 'Wrong Test', description: 'Code does not match selected test', variant: 'destructive' });
+          return;
+        }
         toast({
           title: "Access Granted",
           description: `Welcome to ${result.test_title}`,
         });
-        
+
         onSuccess({
-          testId: result.test_id,
+          testId: result.test_id || testId,
           testTitle: result.test_title,
           anonUserId
         });
