@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Clock, ListChecks, Layers, BookOpen } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { getLockStatus } from '@/utils/testLock';
 
 interface TestRow {
   id: string;
