@@ -221,6 +221,19 @@ export default function TestCreationDialog({ isOpen, onClose, onSuccess }: TestC
 
       if (testError) throw testError;
 
+      // Try to set lock schedule if provided and supported
+      if (test && (testData.access_start_at || testData.access_end_at || typeof testData.is_locked === 'boolean')) {
+        try {
+          const payload: Record<string, any> = {};
+          if (testData.access_start_at) payload.access_start_at = new Date(testData.access_start_at).toISOString();
+          if (testData.access_end_at) payload.access_end_at = new Date(testData.access_end_at).toISOString();
+          if (typeof testData.is_locked === 'boolean') payload.is_locked = testData.is_locked;
+          if (Object.keys(payload).length > 0) {
+            await supabase.from('tests').update(payload).eq('id', test.id);
+          }
+        } catch {}
+      }
+
       // Add questions
       const questionsData = questions.map((q, index) => ({
         test_id: test.id,
