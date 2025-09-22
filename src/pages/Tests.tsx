@@ -132,6 +132,7 @@ export default function Tests() {
         isOpen={showAccessDialog}
         onClose={() => setShowAccessDialog(false)}
         onSuccess={handleAccessCodeSuccess}
+        testId={selectedTestId}
       />
     </div>
   );
