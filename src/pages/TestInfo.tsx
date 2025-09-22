@@ -64,8 +64,15 @@ export default function TestInfo() {
     return parts;
   }, [questionTypes]);
 
+  const { toast } = useToast();
+
   const handleStart = () => {
-    if (!testId) return;
+    if (!testId || !test) return;
+    const status = getLockStatus(test as any);
+    if (!status.open) {
+      toast({ title: 'Test Locked', description: status.reason || 'Not accessible now', variant: 'destructive' });
+      return;
+    }
     const anonKey = `anonUserId:${testId}`;
     const anonUserId = sessionStorage.getItem(anonKey) || crypto.randomUUID();
     sessionStorage.setItem(anonKey, anonUserId);
