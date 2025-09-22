@@ -72,41 +72,53 @@ export default function Tests() {
         </div>
       ) : tests.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {tests.map((test) => (
-            <Card key={test.id} className="border-accent/20 hover:border-primary/20 transition-colors">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{test.title}</CardTitle>
-                    <CardDescription className="mt-1">{test.description}</CardDescription>
-                  </div>
-                  <Badge variant="secondary">{test.test_type}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{test.duration} minutes</span>
+          {tests.map((test) => {
+            const status = getLockStatus(test);
+            return (
+              <Card key={test.id} className="border-accent/20 hover:border-primary/20 transition-colors">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">{test.title}</CardTitle>
+                      <CardDescription className="mt-1">{test.description}</CardDescription>
                     </div>
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <Lock className="h-3 w-3" />
-                      Access Code Required
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant="secondary">{test.test_type}</Badge>
+                      {!status.open && (
+                        <Badge variant="destructive" className="text-xs">{status.reason}</Badge>
+                      )}
+                      {status.open && test.access_end_at && (
+                        <Badge variant="outline" className="text-xs">Closes {formatDateTime(new Date(test.access_end_at))}</Badge>
+                      )}
+                    </div>
                   </div>
-                  
-                  <Button 
-                    onClick={() => setShowAccessDialog(true)} 
-                    className="w-full"
-                    variant="outline"
-                  >
-                    Unlock Test
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span>{test.duration} minutes</span>
+                      </div>
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Access Code Required
+                      </Badge>
+                    </div>
+
+                    <Button
+                      onClick={() => { setSelectedTestId(test.id); setShowAccessDialog(true); }}
+                      className="w-full"
+                      variant="outline"
+                      disabled={!status.open}
+                    >
+                      {status.open ? 'Unlock Test' : 'Locked'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 text-muted-foreground">
