@@ -7,11 +7,13 @@ import { supabase } from '@/integrations/supabase/client';
 import ExamTypeSelector from '@/components/ExamTypeSelector';
 import AccessCodeDialog from '@/components/AccessCodeDialog';
 import { useNavigate } from 'react-router-dom';
+import { getLockStatus, formatDateTime } from '@/utils/testLock';
 
 export default function Tests() {
   const navigate = useNavigate();
   const [examType, setExamType] = useState<'JEE' | 'NEET'>('JEE');
   const [showAccessDialog, setShowAccessDialog] = useState(false);
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [tests, setTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
