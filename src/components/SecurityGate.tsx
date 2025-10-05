@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useISTClock, useSessionTimer } from '@/hooks/useISTClock';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
 
 interface SecurityGateProps {
   onComplete: () => void;
