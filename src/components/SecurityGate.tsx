@@ -67,11 +67,8 @@ export const SecurityGate = ({ onComplete }: SecurityGateProps) => {
 
         <div className="space-y-6 mb-8">
           <p className="text-lg opacity-90">
-            Join our Telegram backup channel <span className="font-semibold">@iit_jee_echo_test</span> for updates.
+            Please wait while we verify your access to the platform.
           </p>
-          <a href="https://t.me/iit_jee_echo_test" target="_blank" rel="noreferrer">
-            <Button variant="secondary">Join Telegram</Button>
-          </a>
           <div className="w-full max-w-md mx-auto">
             <Progress value={progress} className="h-2 bg-white/20" />
             <p className="text-xs opacity-70 mt-2">Redirecting to the site shortly to safeguard against bots...</p>
