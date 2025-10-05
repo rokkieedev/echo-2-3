@@ -116,6 +116,15 @@ export default function TestInterface({ testId, testTitle, anonUserId, onComplet
       if (testRes.error) throw testRes.error;
       if (questionsRes.error) throw questionsRes.error;
 
+      // Enforce lock window
+      const { getLockStatus } = await import('@/utils/testLock');
+      const status = getLockStatus(testRes.data as any);
+      if (!status.open) {
+        toast({ title: 'Test Locked', description: status.reason || 'Not accessible now', variant: 'destructive' });
+        navigate('/tests');
+        return;
+      }
+
       const formattedQuestions = (questionsRes.data || []).map(q => ({
         id: q.id,
         question: q.question,

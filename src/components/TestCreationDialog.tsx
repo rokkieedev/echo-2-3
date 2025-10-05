@@ -41,7 +41,10 @@ export default function TestCreationDialog({ isOpen, onClose, onSuccess }: TestC
     title: '',
     description: '',
     duration: 180, // 3 hours default
-    test_type: 'JEE' as 'JEE' | 'NEET'
+    test_type: 'JEE' as 'JEE' | 'NEET',
+    access_start_at: '' as string | '',
+    access_end_at: '' as string | '',
+    is_locked: false,
   });
 
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -62,7 +65,10 @@ export default function TestCreationDialog({ isOpen, onClose, onSuccess }: TestC
       title: '',
       description: '',
       duration: 180,
-      test_type: 'JEE'
+      test_type: 'JEE',
+      access_start_at: '',
+      access_end_at: '',
+      is_locked: false,
     });
     setQuestions([]);
     setCurrentQuestion({
@@ -215,6 +221,19 @@ export default function TestCreationDialog({ isOpen, onClose, onSuccess }: TestC
 
       if (testError) throw testError;
 
+      // Try to set lock schedule if provided and supported
+      if (test && (testData.access_start_at || testData.access_end_at || typeof testData.is_locked === 'boolean')) {
+        try {
+          const payload: Record<string, any> = {};
+          if (testData.access_start_at) payload.access_start_at = new Date(testData.access_start_at).toISOString();
+          if (testData.access_end_at) payload.access_end_at = new Date(testData.access_end_at).toISOString();
+          if (typeof testData.is_locked === 'boolean') payload.is_locked = testData.is_locked;
+          if (Object.keys(payload).length > 0) {
+            await supabase.from('tests').update(payload).eq('id', test.id);
+          }
+        } catch {}
+      }
+
       // Add questions
       const questionsData = questions.map((q, index) => ({
         test_id: test.id,
@@ -321,7 +340,7 @@ export default function TestCreationDialog({ isOpen, onClose, onSuccess }: TestC
                 </Select>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -332,16 +351,38 @@ export default function TestCreationDialog({ isOpen, onClose, onSuccess }: TestC
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="duration">Duration (minutes)</Label>
-              <Input
-                id="duration"
-                type="number"
-                min="30"
-                max="300"
-                value={testData.duration}
-                onChange={(e) => setTestData({ ...testData, duration: parseInt(e.target.value) })}
-              />
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="duration">Duration (minutes)</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  min="30"
+                  max="300"
+                  value={testData.duration}
+                  onChange={(e) => setTestData({ ...testData, duration: parseInt(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Access Start</Label>
+                <Input
+                  type="datetime-local"
+                  value={testData.access_start_at}
+                  onChange={(e) => setTestData({ ...testData, access_start_at: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Access End</Label>
+                <Input
+                  type="datetime-local"
+                  value={testData.access_end_at}
+                  onChange={(e) => setTestData({ ...testData, access_end_at: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input id="lock-now" type="checkbox" checked={testData.is_locked} onChange={(e) => setTestData({ ...testData, is_locked: e.target.checked })} />
+              <Label htmlFor="lock-now">Lock Now</Label>
             </div>
           </TabsContent>
 

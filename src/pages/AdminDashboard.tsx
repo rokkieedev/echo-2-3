@@ -10,6 +10,7 @@ import TestCreationDialog from '@/components/TestCreationDialog';
 import AccessCodeManager from '@/components/AccessCodeManager';
 import BooksDialog from '@/components/BooksDialog';
 import AssignmentsDialog from '@/components/AssignmentsDialog';
+import TestLockManager from '@/components/TestLockManager';
 import { 
   Settings, 
   LogOut, 
@@ -252,6 +253,8 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            <TestLockManager />
           </TabsContent>
 
           <TabsContent value="content" className="space-y-6">
